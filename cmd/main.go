@@ -30,6 +30,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -39,7 +40,9 @@ import (
 
 	demov1 "github.com/leobip/demo-operator/api/v1"
 	"github.com/leobip/demo-operator/internal/controller"
+
 	// +kubebuilder:scaffold:imports
+	metricslibs "github.com/leobip/metrics-libs/libs"
 )
 
 var (
@@ -180,13 +183,29 @@ func main() {
 		})
 	}
 
+	// Determine if operator should run in single-namespace or cluster-wide mode
+	// If watchNamespace is empty, the manager will watch for resources in all namespaces (cluster-wide mode)
+	// If watchNamespace has a value, the manager will only watch resources in that namespace (namespace-scoped mode)
+	var watchNamespace string
+	if ns := os.Getenv("WATCH_NAMESPACE"); ns != "" {
+		watchNamespace = ns
+	}
+	cacheOptions := cache.Options{}
+	if watchNamespace != "" {
+		cacheOptions.DefaultNamespaces = map[string]cache.Config{
+			watchNamespace: {},
+		}
+	}
+	// Create a new manager to provide shared dependencies and start components
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
 		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "40e0c83c.demo.local",
+		Cache:                  cacheOptions,
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
@@ -211,6 +230,22 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Simple")
 		os.Exit(1)
 	}
+
+	// Strart merics from library
+	go func() {
+		if err := metricslibs.StartPrometheusMetrics(); err != nil {
+			setupLog.Error(err, "❌ could not start Prometheus metrics server")
+		} else {
+			setupLog.Info("📊 custom Prometheus metrics server started on :2112")
+		}
+	}()
+
+	setupLog.Info("starting manager")
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		setupLog.Error(err, "problem running manager")
+		os.Exit(1)
+	}
+
 	// +kubebuilder:scaffold:builder
 
 	if metricsCertWatcher != nil {
