@@ -375,3 +375,135 @@ NOTE: To run the operator locally
 ```bash
 make run
 ```
+
+## ✅ Step-by-Step Guide: Deploying the Operator with Updated Metrics Library in Minikube
+
+### 1. 🧱 Push changes to your metrics library repository
+
+```bash
+git add .
+git commit -m "Add new metrics logic"
+git push origin your-feature-branch
+```
+
+### 2. 🏷️ Create a version tag for the library
+
+```bash
+git checkout your-feature-branch
+git tag v0.1.3  # Replace with the appropriate version
+git push origin v0.1.3
+```
+
+### 3. 🔁 Update your operator to use the tagged version
+
+- In your operator's go.mod file:
+  - Replace the local replace line with the proper module version:
+
+```go
+require (
+    github.com/your-username/metrics-libs v0.1.3
+)
+```
+
+- ✅ Comment or remove the replace line like:
+
+```go
+// replace github.com/your-username/metrics-libs => ../metrics-libs
+```
+
+### 4. Set the Environmental Variables
+
+- Set the env vars in: config/manager/manager.yaml in the section containers
+  - Set the KAFKA_BROKER: name_of_the_kafka_service.namespace.svc.cluster.local:9092
+  - value: "kafka.monitoring.svc.cluster.local:9092"
+
+```yaml
+...
+containers:
+      - command:
+        - /manager
+        args:
+          - --leader-elect
+          - --health-probe-bind-address=:8081
+        image: simple-operator:v0.0.1
+        name: manager
+        env:
+          - name: METRICS_NAMESPACE
+            value: "metrics-ex"
+          - name: METRICS_CLUSTER
+            value: "local-cluster"
+          - name: METRICS_RESOURCE_KIND
+            value: "MyResource"
+          - name: METRICS_CONTROLLER_NAME
+            value: "simple-operator"
+          - name: METRICS_CONTROLLER_VERSION
+            value: "v0.0.1"
+          - name: KAFKA_BROKER
+            value: "kafka.monitoring.svc.cluster.local:9092"
+          - name: KAFKA_TOPIC
+            value: "metrics"
+...
+```
+
+### 5. 📦 Fetch the new library version and tidy up
+
+```bash
+go get github.com/your-username/metrics-libs@v0.1.3
+go mod tidy
+```
+
+### 6. 🐳 Build the operator Docker image
+
+- ⚠️ Make sure your Docker environment is set to Minikube:
+
+```bash
+eval $(minikube docker-env)
+```
+
+- Now build the image (replace with your operator name/tag):
+
+```bash
+make docker-build IMG=demo-operator:latest
+```
+
+### 7. 📦 Load the image into Minikube
+
+```bash
+minikube image load demo-operator:latest
+```
+
+### 8. 🚀 Deploy the operator into the cluster
+
+- Make sure your kube context points to Minikube and your operator config is updated with the right image tag:
+
+```bash
+make deploy IMG=demo-operator:latest
+```
+
+- Or, if using kustomize, edit your config/manager/kustomization.yaml:
+
+```yaml
+images:
+- name: controller
+  newName: demo-operator
+  newTag: dev
+```
+
+- Then:
+
+```bash
+make deploy IMG=demo-operator:dev
+```
+
+### 9. ✅ Verify the deployment
+
+```bash
+kubectl get pods -n your-namespace
+kubectl logs deployment/demo-operator -n your-namespace
+```
+
+### 10. To Delete or Unistall the Operator from Minikube
+
+```bash
+make undeploy
+```

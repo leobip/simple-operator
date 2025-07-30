@@ -63,8 +63,23 @@ spec:
         args:
           - --leader-elect
           - --health-probe-bind-address=:8081
-        image: controller:latest
+        image: simple-operator:v0.0.1
         name: manager
+        env:
+          - name: METRICS_NAMESPACE
+            value: "metrics-ex"
+          - name: METRICS_CLUSTER
+            value: "local-cluster"
+          - name: METRICS_RESOURCE_KIND
+            value: "MyResource"
+          - name: METRICS_CONTROLLER_NAME
+            value: "simple-operator"
+          - name: METRICS_CONTROLLER_VERSION
+            value: "v0.0.1"
+          - name: KAFKA_BROKER
+            value: "kafka.monitoring.svc.cluster.local:9092"
+          - name: KAFKA_TOPIC
+            value: "metrics"
         ports: []
         securityContext:
           readOnlyRootFilesystem: true

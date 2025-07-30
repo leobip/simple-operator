@@ -231,12 +231,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Strart merics from library
+	// Start metrics from library
 	go func() {
-		if err := metricslibs.StartPrometheusMetrics(); err != nil {
-			setupLog.Error(err, "❌ could not start Prometheus metrics server")
+		if err := metricslibs.StartKafkaMetrics(); err != nil {
+			setupLog.Error(err, "❌ could not start Kafka metrics server")
 		} else {
-			setupLog.Info("📊 custom Prometheus metrics server started on :2112")
+			setupLog.Info("📊 custom Kafka metrics server started on :2112")
 		}
 	}()
 
