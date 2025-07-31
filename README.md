@@ -411,9 +411,23 @@ require (
 // replace github.com/your-username/metrics-libs => ../metrics-libs
 ```
 
-### 4. Set the Environmental Variables
+### 4. Set the name of the image & the Environmental Variables
 
-- Set the env vars in: config/manager/manager.yaml in the section containers
+- in: config/manager/manager.yaml
+- Set the name of the Image
+
+```yaml
+containers:
+      - command:
+        - /manager
+        args:
+          - --leader-elect
+          - --health-probe-bind-address=:8081
+        image: simple-operator:v0.0.1 # <-- Here the image to use
+        name: manager
+```
+
+- Set the env vars in the section containers
   - Set the KAFKA_BROKER: name_of_the_kafka_service.namespace.svc.cluster.local:9092
   - CMD to get hte services: kubectl get services -n kafka-namespace
   - value: "kafka.monitoring.svc.cluster.local:9092"
