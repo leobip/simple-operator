@@ -415,6 +415,7 @@ require (
 
 - Set the env vars in: config/manager/manager.yaml in the section containers
   - Set the KAFKA_BROKER: name_of_the_kafka_service.namespace.svc.cluster.local:9092
+  - CMD to get hte services: kubectl get services -n kafka-namespace
   - value: "kafka.monitoring.svc.cluster.local:9092"
 
 ```yaml
